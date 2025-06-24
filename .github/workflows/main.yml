@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+      with:
+        # CORREÇÃO: Baixa o histórico completo para o Sonar poder atribuir 'blame'.
+        fetch-depth: 0
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
