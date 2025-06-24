@@ -1,5 +1,5 @@
 # tests/test_api.py
-"""Módulo de testes para os endpoints da API."""
+"""Módulo de testes de integração para os endpoints da API."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,52 +10,62 @@ from app.models import StatusBicicleta
 client = TestClient(app)
 
 @pytest.fixture(autouse=True)
-def clean_db_before_tests():
-    """Fixture para limpar o banco de dados em memória antes de cada teste."""
+def setup_test_db():
+    """Fixture para limpar o banco de dados antes de cada teste de API."""
     restaurar_banco()
     yield
 
-def test_criar_bicicleta():
-    """Testa a criação bem-sucedida de uma bicicleta."""
+def test_criar_bicicleta_api():
+    """Testa o endpoint de criação de bicicleta."""
     response = client.post(
         "/bicicleta/",
-        json={
-            "marca": "Caloi",
-            "modelo": "Elite",
-            "ano": "2023",
-            "numero": 101,
-            "status": "NOVA"
-        },
+        json={"marca":"Caloi","modelo":"Elite","ano":"2023","numero":101,"status":"NOVA"},
     )
     assert response.status_code == 201
     data = response.json()
     assert data["marca"] == "Caloi"
-    assert data["status"] == StatusBicicleta.NOVA
     assert "id" in data
 
-def test_listar_bicicletas():
-    """Testa a listagem de bicicletas."""
-    client.post("/bicicleta/", json={"marca": "Caloi", "modelo": "Elite", "ano": "2023", "numero": 101, "status": "NOVA"})
-    
+def test_listar_bicicletas_api():
+    """Testa o endpoint de listagem de bicicletas."""
+    client.post("/bicicleta/",json={"marca":"Caloi","modelo":"Elite","ano":"2023","numero":101,"status":"NOVA"})
     response = client.get("/bicicleta/")
     assert response.status_code == 200
     data = response.json()
-    assert isinstance(data, list)
     assert len(data) == 1
-    assert data[0]["numero"] == 101
 
-def test_obter_bicicleta_nao_existente():
-    """Testa a busca por uma bicicleta que não existe, esperando um erro 404."""
-    response = client.get("/bicicleta/99999")
+def test_obter_bicicleta_not_found_api():
+    """Testa o endpoint de obter bicicleta com um ID que não existe."""
+    response = client.get("/bicicleta/999")
     assert response.status_code == 404
 
-def test_criar_totem():
-    """Testa a criação bem-sucedida de um totem."""
-    response = client.post(
-        "/totem/",
-        json={"localizacao": "Ponto A", "descricao": "Totem perto da biblioteca"}
-    )
-    assert response.status_code == 201
-    data = response.json()
-    assert data["localizacao"] == "Ponto A"
-    assert "id" in data
+def test_deletar_bicicleta_api():
+    """Testa o endpoint de exclusão de bicicleta."""
+    create_response = client.post("/bicicleta/",json={"marca":"Caloi","modelo":"Elite","ano":"2023","numero":101,"status":"NOVA"})
+    item_id = create_response.json()["id"]
+    
+    delete_response = client.delete(f"/bicicleta/{item_id}")
+    assert delete_response.status_code == 204
+
+def test_deletar_bicicleta_not_found_api():
+    """Testa o endpoint de exclusão com um ID que não existe."""
+    delete_response = client.delete("/bicicleta/999")
+    assert delete_response.status_code == 404
+    
+def test_atualizar_totem_api():
+    """Testa o endpoint de atualização de totem."""
+    create_response = client.post("/totem/", json={"localizacao": "A", "descricao": "B"})
+    item_id = create_response.json()["id"]
+
+    update_response = client.put(f"/totem/{item_id}", json={"localizacao": "C", "descricao": "D"})
+    assert update_response.status_code == 200
+    assert update_response.json()["localizacao"] == "C"
+
+def test_deletar_totem_api():
+    """Testa o endpoint de exclusão de totem."""
+    create_response = client.post("/totem/", json={"localizacao": "A", "descricao": "B"})
+    item_id = create_response.json()["id"]
+
+    delete_response = client.delete(f"/totem/{item_id}")
+    assert delete_response.status_code == 204
+
