@@ -4,7 +4,15 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from enum import Enum
-import random
+
+# Usaremos um gerador de ID sequencial para evitar colisões do random em testes.
+ID_COUNTER = 1
+
+def generate_id():
+    """Gera um ID sequencial para os modelos."""
+    global ID_COUNTER
+    ID_COUNTER += 1
+    return ID_COUNTER
 
 class StatusBicicleta(str, Enum):
     """Enumeração dos possíveis status de uma bicicleta."""
@@ -27,6 +35,11 @@ class StatusAcaoReparador(str, Enum):
     """Enumeração das ações que um reparador pode tomar."""
     APOSENTADA = 'APOSENTADA'
     EM_REPARO = 'EM_REPARO'
+    
+class AcaoTranca(str, Enum):
+    """Enumeração das ações de trancar/destrancar."""
+    TRANCAR = 'TRANCAR'
+    DESTRANCAR = 'DESTRANCAR'
 
 # --- Modelos para Bicicleta ---
 class NovaBicicleta(BaseModel):
@@ -39,7 +52,7 @@ class NovaBicicleta(BaseModel):
 
 class Bicicleta(NovaBicicleta):
     """Schema completo de uma bicicleta, incluindo o ID."""
-    id: int = Field(default_factory=lambda: random.randint(1, 10000))
+    id: int = Field(default_factory=generate_id)
 
 class BicicletaUpdate(BaseModel):
     """Schema para atualização de uma bicicleta, com campos opcionais."""
@@ -57,7 +70,7 @@ class NovoTotem(BaseModel):
 
 class Totem(NovoTotem):
     """Schema completo de um totem, incluindo o ID e a lista de trancas."""
-    id: int = Field(default_factory=lambda: random.randint(1, 10000))
+    id: int = Field(default_factory=generate_id)
     trancas: List[int] = []
 
 class TotemUpdate(BaseModel):
@@ -76,7 +89,7 @@ class NovaTranca(BaseModel):
 
 class Tranca(NovaTranca):
     """Schema completo de uma tranca, incluindo o ID e a bicicleta associada."""
-    id: int = Field(default_factory=lambda: random.randint(1, 10000))
+    id: int = Field(default_factory=generate_id)
     bicicleta: Optional[int] = None
 
 class TrancaUpdate(BaseModel):
@@ -88,12 +101,26 @@ class TrancaUpdate(BaseModel):
     status: Optional[StatusTranca] = None
 
 # --- Modelos para Ações Complexas ---
-class IntegracaoRede(BaseModel):
-    """Schema para os dados necessários para integrar uma bicicleta ou tranca na rede."""
+class IntegracaoBicicletaRede(BaseModel):
+    """Schema para os dados necessários para integrar uma bicicleta na rede."""
     idTranca: int
     idBicicleta: int
     idFuncionario: int
 
-class RetiradaRede(IntegracaoRede):
-    """Schema para os dados necessários para retirar uma bicicleta ou tranca da rede."""
+class RetiradaBicicletaRede(IntegracaoBicicletaRede):
+    """Schema para os dados necessários para retirar uma bicicleta da rede."""
     statusAcaoReparador: StatusAcaoReparador
+
+class IntegracaoTrancaRede(BaseModel):
+    """Schema para os dados necessários para integrar uma tranca na rede."""
+    idTotem: int
+    idTranca: int
+    idFuncionario: int
+
+class RetiradaTrancaRede(IntegracaoTrancaRede):
+    """Schema para os dados necessários para retirar uma tranca da rede."""
+    statusAcaoReparador: StatusAcaoReparador
+    
+class AcaoTrancar(BaseModel):
+    """Schema para o corpo da requisição de trancar uma tranca."""
+    bicicleta: Optional[int] = None

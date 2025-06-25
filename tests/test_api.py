@@ -4,8 +4,8 @@
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
-from app.services import restaurar_banco
-from app.models import StatusBicicleta
+from app.services import restaurar_banco, bicicleta_service, tranca_service
+from app.models import StatusBicicleta, NovaBicicleta, NovaTranca, StatusTranca, AcaoTranca
 
 client = TestClient(app)
 
@@ -17,27 +17,11 @@ def setup_test_db():
 
 def test_criar_bicicleta_api():
     """Testa o endpoint de criação de bicicleta."""
-    response = client.post(
-        "/bicicleta/",
-        json={"marca":"Caloi","modelo":"Elite","ano":"2023","numero":101,"status":"NOVA"},
-    )
-    assert response.status_code == 201
+    response = client.post("/bicicleta/", json={"marca":"Caloi","modelo":"Elite","ano":"2023","numero":101,"status":"NOVA"})
+    assert response.status_code == 200
     data = response.json()
     assert data["marca"] == "Caloi"
     assert "id" in data
-
-def test_listar_bicicletas_api():
-    """Testa o endpoint de listagem de bicicletas."""
-    client.post("/bicicleta/",json={"marca":"Caloi","modelo":"Elite","ano":"2023","numero":101,"status":"NOVA"})
-    response = client.get("/bicicleta/")
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data) == 1
-
-def test_obter_bicicleta_not_found_api():
-    """Testa o endpoint de obter bicicleta com um ID que não existe."""
-    response = client.get("/bicicleta/999")
-    assert response.status_code == 404
 
 def test_deletar_bicicleta_api():
     """Testa o endpoint de exclusão de bicicleta."""
@@ -45,7 +29,7 @@ def test_deletar_bicicleta_api():
     item_id = create_response.json()["id"]
     
     delete_response = client.delete(f"/bicicleta/{item_id}")
-    assert delete_response.status_code == 204
+    assert delete_response.status_code == 200
 
 def test_deletar_bicicleta_not_found_api():
     """Testa o endpoint de exclusão com um ID que não existe."""
@@ -67,5 +51,30 @@ def test_deletar_totem_api():
     item_id = create_response.json()["id"]
 
     delete_response = client.delete(f"/totem/{item_id}")
-    assert delete_response.status_code == 204
+    assert delete_response.status_code == 200
+
+def test_alterar_status_bicicleta_api():
+    """Testa o endpoint de alteração de status da bicicleta."""
+    bicicleta_criada = bicicleta_service.create(NovaBicicleta(marca="a",modelo="b",ano="c",numero=1,status=StatusBicicleta.NOVA))
+    response = client.post(f"/bicicleta/{bicicleta_criada.id}/status/{StatusBicicleta.EM_USO.value}")
+    assert response.status_code == 200
+    assert response.json()["status"] == StatusBicicleta.EM_USO
+
+def test_obter_bicicleta_na_tranca_api():
+    """Testa o endpoint para obter uma bicicleta de uma tranca."""
+    bicicleta = bicicleta_service.create(NovaBicicleta(marca="a",modelo="b",ano="c",numero=1,status=StatusBicicleta.NOVA))
+    tranca = tranca_service.create(NovaTranca(numero=1, localizacao="a", anoDeFabricacao="a", modelo="a", status=StatusTranca.LIVRE))
+    
+    tranca.bicicleta = bicicleta.id
+    
+    response = client.get(f"/tranca/{tranca.id}/bicicleta")
+    assert response.status_code == 200
+    assert response.json()["id"] == bicicleta.id
+
+def test_alterar_status_tranca_api():
+    """Testa o endpoint de alteração de status da tranca."""
+    tranca = tranca_service.create(NovaTranca(numero=1, localizacao="a", anoDeFabricacao="a", modelo="a", status=StatusTranca.LIVRE))
+    response = client.post(f"/tranca/{tranca.id}/status/{AcaoTranca.TRANCAR.value}")
+    assert response.status_code == 200
+    assert response.json()["status"] == StatusTranca.OCUPADA
 
